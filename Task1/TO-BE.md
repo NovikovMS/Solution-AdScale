@@ -36,12 +36,14 @@
 Сначала вокруг монолита создается новый контур для критичных возможностей:
 
 1. API Gateway принимает внешний DSP-трафик, выполняет rate limiting, auth, circuit breaker и маршрутизацию.
-2. Bidding Service выносит latency-critical аукцион из монолита.
-3. Campaign Service становится источником данных о кампаниях, ставках и таргетинге.
-4. Redis используется для быстрого чтения в hot path.
-5. Kafka принимает события показов и кликов.
-6. Statistics и Analytics переходят на асинхронный pipeline.
-7. Монолит временно сохраняет рекламный кабинет и часть backoffice-функций, пока они не будут вынесены безопасно.
+2. Ad Server сохраняет исходную функцию приема HTTP-запросов, определения пользователя и подбора кандидатов, но переводится на чтение hot data из Redis.
+3. Bidding Service выносит latency-critical аукцион из монолита.
+4. Delivery Service сохраняет исходную функцию формирования HTML/JS-разметки баннера и HTTP response, но перестает синхронно завязывать delivery на запись событий в БД.
+5. Campaign Service становится источником данных о кампаниях, ставках и таргетинге.
+6. Redis используется для быстрого чтения в hot path.
+7. Kafka принимает события показов, кликов и win/loss.
+8. Statistics и Analytics переходят на асинхронный pipeline.
+9. Монолит временно сохраняет рекламный кабинет и часть backoffice-функций, пока они не будут вынесены безопасно.
 
 Такой подход дает быстрый эффект для SLA и сохраняет управляемый темп миграции.
 
@@ -50,10 +52,12 @@
 | Сервис | Ответственность | Основное хранилище |
 | --- | --- | --- |
 | DSP API Gateway | Входной слой для DSP: auth, rate limit, routing, circuit breaker, latency metrics | Конфигурация gateway |
-| Bidding Service | Обработка bid request, выбор победителя, применение быстрых правил ставок | Собственная БД + Redis для hot data |
+| Ad Server | Принимает HTTP-запросы, определяет пользователя, подбирает кандидатов в рекламу | Redis + Campaign Service |
+| Bidding Service | Взвешивает ставки, применяет бизнес-правила, выбирает победителя | Собственная БД + Redis для hot data |
+| Delivery Service | Формирует HTML/JS-разметку баннера и HTTP response | Kafka через Event Sink |
 | Campaign Service | Кампании, ставки, таргетинг, правила показа | Campaign DB |
 | Budget Service | Быстрая проверка лимитов и доступного бюджета | Budget DB + Redis |
-| Event Ingestion Service | Прием событий показов, кликов, win/loss events | Kafka |
+| Event Sink Service | Прием событий показов, кликов, win/loss events | Kafka |
 | Statistics Service | Агрегация событий и подготовка статистики | Statistics DB |
 | Analytics Service | Отчеты, аналитика, витрины данных | Analytics DB / OLAP |
 | Financial Service | Списания, счета, балансы, сверки | Finance DB |
@@ -65,18 +69,19 @@
 ### RTB hot path
 
 1. DSP отправляет bid request в DSP API Gateway.
-2. Gateway проверяет партнера, применяет rate limit и передает запрос в Bidding Service.
-3. Bidding Service читает hot data из Redis: кампании, ставки, таргетинг, бюджетные лимиты.
-4. При необходимости Bidding Service обращается к Campaign Service или Budget Service, но такие вызовы не должны быть обязательными для каждого bid request.
-5. Bidding Service возвращает bid response через Gateway.
+2. Пользователь сайта или приложения отправляет HTTP-запрос на подбор рекламы в Ad Server; DSP-трафик проходит через DSP API Gateway и также маршрутизируется в Ad Server.
+3. Ad Server определяет пользователя и подбирает кандидатов рекламы по данным из Redis и Campaign Service.
+4. Bidding Service взвешивает ставки, применяет бизнес-правила и выбирает победителя, используя hot data из Redis и быстрые бюджетные проверки.
+5. Delivery Service получает победившую рекламу, формирует HTML/JS-разметку баннера и HTTP response.
 6. События win/loss, impressions и clicks публикуются в Kafka асинхронно.
 
 ### Поток событий
 
-1. Delivery/Event Ingestion Service публикует события в Kafka.
-2. Statistics Service потребляет события и обновляет агрегаты.
-3. Analytics Service строит аналитические витрины.
-4. Финансовые события обрабатываются отдельно с идемпотентностью и контролем транзакций.
+1. Delivery Service передает события показов и кликов в Event Sink Service.
+2. Event Sink Service публикует события в Kafka.
+3. Statistics Service потребляет события и обновляет агрегаты.
+4. Analytics Service строит аналитические витрины.
+5. Финансовые события обрабатываются отдельно с идемпотентностью и контролем транзакций.
 
 ### Управление кампаниями
 
@@ -91,6 +96,7 @@
 
 - Campaign DB хранит кампании, ставки, таргетинг и правила.
 - Bidding DB хранит только данные, необходимые сервису ставок: локальные индексы, runtime-конфигурацию, результаты аукционов при необходимости.
+- Budget DB хранит лимиты, резервы и состояние бюджетов для быстрых проверок в RTB-пути.
 - Finance DB хранит балансы, счета, проводки и идемпотентные операции.
 - Statistics DB хранит агрегированные события.
 - Analytics DB / OLAP хранит витрины для отчетности.
@@ -109,7 +115,9 @@
 Минимально достаточный объем:
 
 - Gateway перед DSP-трафиком.
-- Первый Bidding Service или выделенный bidding runtime вокруг существующей логики.
+- Модифицированный Ad Server с чтением hot data из Redis вместо обязательных чтений из legacy PostgreSQL.
+- Первый Bidding Service или выделенный bidding runtime вокруг существующей логики Auction Engine.
+- Модифицированный Delivery Service, который формирует HTML/JS и HTTP response, а события отправляет асинхронно.
 - Redis-кэш для кампаний, ставок и таргетинга.
 - Kafka для событий кликов и показов.
 - Отключение тяжелой аналитики от production-БД через read replica или отдельный analytics pipeline.
@@ -121,7 +129,7 @@
 
 - 50 000 RPS.
 - Несколько DSP-партнеров.
-- Горизонтально масштабируемые Bidding, Gateway и Event Ingestion.
+- Горизонтально масштабируемые Gateway, Ad Server, Bidding, Delivery и Event Sink.
 - Kafka-based event processing.
 - Разделение данных по сервисам.
 - Read/analytics контур отделен от transactional path.
