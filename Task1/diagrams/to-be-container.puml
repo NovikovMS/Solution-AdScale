@@ -1,0 +1,177 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+LAYOUT_LEFT_RIGHT()
+
+title C4 Container Diagram - AdScale TO-BE
+
+' ====================== Tags ======================
+AddElementTag("new", $bgColor="#438DD5", $fontColor="#FFFFFF", $borderColor="#2E6295")
+AddElementTag("modified", $bgColor="#438DD5", $fontColor="#FFFFFF", $borderColor="#2E6295")
+AddElementTag("legacy", $bgColor="#666666", $fontColor="#FFFFFF", $borderColor="#444444")
+AddElementTag("removed", $bgColor="#8A8195", $fontColor="#FFFFFF", $borderColor="#736782")
+
+' ====================== Actors and external systems ======================
+Person(advertiser, "Рекламодатель", "Управляет кампаниями, бюджетами и отчетностью")
+Person(endUser, "Пользователь сайта/приложения", "Запрашивает рекламу, видит баннер, кликает")
+
+System_Ext(dspPartner, "DSP-партнеры", "Отправляют bid requests и получают bid responses по OpenRTB")
+System_Ext(paymentGateway, "Платежный шлюз", "Обработка пополнения рекламных бюджетов")
+
+' ====================== AdScale Platform ======================
+System_Boundary(adscale, "AdScale Platform") {
+
+  Boundary(edge, "Edge / API Layer") {
+    Container(dspGateway, "<color:#00AA00><size:32><b>✚</b></size></color> [N] DSP API Gateway", "API Gateway / Envoy / NGINX", "Auth, rate limiting, routing, circuit breaker, latency metrics", $tags="new")
+    Container(dashboard, "<color:#001aff><size:28><b>⚑</b></size></color> [M] Advertiser Dashboard", "Web UI", "Управление кампаниями, бюджетами и отчетностью", $tags="modified")
+  }
+
+  Boundary(rtbPath, "RTB / Ad Delivery Path") {
+    Container(adServer, "<color:#001aff><size:28><b>⚑</b></size></color> [M] Ad Server", "C++ / Go", "Принимает HTTP-запросы, определяет пользователя, подбирает кандидатов в рекламу", $tags="modified")
+    Container(biddingService, "<color:#00AA00><size:32><b>✚</b></size></color> [N] Bidding Service", "C++ / Go", "Взвешивает ставки, применяет бизнес-правила, выбирает победителя", $tags="new")
+    Container(deliveryService, "<color:#001aff><size:28><b>⚑</b></size></color> [M] Delivery Service", "Node.js", "Формирует HTML/JS-разметку баннера и HTTP response", $tags="modified")
+    Container(budgetService, "<color:#00AA00><size:32><b>✚</b></size></color> [N] Budget Service", "Go", "Быстрая проверка лимитов и доступного бюджета", $tags="new")
+    Container(redis, "<color:#00AA00><size:32><b>✚</b></size></color> [N] Redis Cluster", "Redis", "Hot data cache: кампании, ставки, таргетинг, бюджетные лимиты", $tags="new")
+  }
+
+  Boundary(domain, "Domain Services") {
+    Container(campaignService, "<color:#00AA00><size:32><b>✚</b></size></color> [N] Campaign Service", "Go / Node.js", "Кампании, ставки, таргетинг, правила показа", $tags="new")
+    Container(financialService, "<color:#00AA00><size:32><b>✚</b></size></color> [N] Financial Service", "Go", "Списания, счета, балансы, сверки", $tags="new")
+    Container(eventSink, "<color:#00AA00><size:32><b>✚</b></size></color> [N] Event Sink Service", "Go / Python", "Прием impressions, clicks, win/loss events", $tags="new")
+    Container(statisticsService, "<color:#00AA00><size:32><b>✚</b></size></color> [N] Statistics Service", "Python / Go", "Агрегация событий кликов и показов", $tags="new")
+    Container(analyticsService, "<color:#00AA00><size:32><b>✚</b></size></color> [N] Analytics Service", "Python", "Отчеты и аналитические витрины", $tags="new")
+  }
+
+  Boundary(streaming, "Event Streaming") {
+    ContainerQueue(kafka, "<color:#00AA00><size:32><b>✚</b></size></color> [N] Kafka Cluster", "Kafka", "Impressions, clicks, win/loss events, domain events", $tags="new")
+  }
+
+  Boundary(stores, "Data Stores") {
+    ContainerDb(campaignDb, "<color:#00AA00><size:32><b>✚</b></size></color> [N] Campaign DB", "PostgreSQL", "Кампании, ставки, таргетинг", $tags="new")
+    ContainerDb(biddingDb, "<color:#00AA00><size:32><b>✚</b></size></color> [N] Bidding DB", "PostgreSQL / KV indexes", "Runtime-конфигурация и индексы ставок", $tags="new")
+    ContainerDb(budgetDb, "<color:#00AA00><size:32><b>✚</b></size></color> [N] Budget DB", "PostgreSQL", "Лимиты, резервы и состояние бюджетов", $tags="new")
+    ContainerDb(financeDb, "<color:#00AA00><size:32><b>✚</b></size></color> [N] Finance DB", "PostgreSQL", "Балансы, счета, финансовые операции", $tags="new")
+    ContainerDb(statisticsDb, "<color:#00AA00><size:32><b>✚</b></size></color> [N] Statistics DB", "PostgreSQL / ClickHouse", "Агрегированная статистика", $tags="new")
+    ContainerDb(analyticsDb, "<color:#00AA00><size:32><b>✚</b></size></color> [N] Analytics DB / OLAP", "ClickHouse / DWH", "Аналитические витрины", $tags="new")
+    ContainerDb(legacyDb, "<color:#001aff><size:28><b>⚑</b></size></color> [M] Legacy PostgreSQL", "PostgreSQL", "Данные функций, еще не вынесенных из монолита", $tags="legacy")
+  }
+
+  Boundary(platform, "Platform") {
+    Container(k8s, "<color:#00AA00><size:32><b>✚</b></size></color> [N] Kubernetes", "K8s", "Контейнеризация, autoscaling, rolling updates", $tags="new")
+    Container(cicd, "<color:#00AA00><size:32><b>✚</b></size></color> [N] CI/CD Pipeline", "CI/CD", "Автоматический деплой, rollback, проверки контрактов и миграций", $tags="new")
+    Container(observability, "<color:#00AA00><size:32><b>✚</b></size></color> [N] Observability Stack", "Metrics / Logs / Traces", "Метрики, логи, трейсы, алерты", $tags="new")
+  }
+
+  Container(legacyMonolith, "<color:#001aff><size:28><b>⚑</b></size></color> [M] Legacy Monolith", "C++ / Go / Python / Node.js", "Функции, мигрируемые постепенно по Strangler Fig Pattern", $tags="legacy")
+}
+
+' ====================== External relations ======================
+Rel(dspPartner, dspGateway, "Bid requests / responses", "HTTPS / OpenRTB")
+Rel(advertiser, dashboard, "Управляет кампаниями и бюджетами", "HTTPS")
+Rel(endUser, adServer, "HTTP-запрос на подбор рекламы", "HTTPS")
+Rel(deliveryService, endUser, "HTML/JS разметка баннера и HTTP response", "HTTPS")
+Rel(financialService, paymentGateway, "Пополнение бюджета", "HTTPS / REST")
+
+' ====================== RTB / Ad delivery path ======================
+Rel(dspGateway, adServer, "Маршрутизирует bid/ad request", "HTTP / gRPC")
+Rel(adServer, redis, "Читает targeting, кампании и ставки", "Redis protocol")
+Rel(adServer, campaignService, "Получает правила при cache miss", "gRPC")
+Rel(adServer, biddingService, "Передает кандидатов", "Internal / gRPC")
+Rel(biddingService, redis, "Читает hot data", "Redis protocol")
+Rel(biddingService, budgetService, "Проверяет лимиты бюджета", "gRPC / cached")
+Rel(biddingService, biddingDb, "Runtime config", "SQL / KV")
+Rel(biddingService, kafka, "Auction win/loss events", "Async")
+Rel(biddingService, deliveryService, "Передает победителя", "Internal / gRPC")
+Rel(deliveryService, dspGateway, "Bid response для DSP", "HTTPS / OpenRTB")
+Rel(deliveryService, eventSink, "Регистрирует показы и клики", "Async / HTTP")
+
+' ====================== Dashboard and domain flows ======================
+Rel(dashboard, campaignService, "CRUD кампаний, ставок, таргетинга", "HTTPS / REST")
+Rel(dashboard, financialService, "Балансы, счета, платежи", "HTTPS / REST")
+Rel(dashboard, analyticsService, "Отчеты и аналитика", "HTTPS / REST")
+Rel(dashboard, legacyMonolith, "Еще не вынесенные функции", "Internal API")
+
+Rel(campaignService, campaignDb, "Читает и пишет кампании", "SQL")
+Rel(campaignService, redis, "Обновляет hot data", "Event-driven invalidation")
+Rel(campaignService, kafka, "Campaign changed", "Domain event")
+
+Rel(budgetService, budgetDb, "Лимиты и резервы бюджета", "SQL")
+Rel(budgetService, redis, "Кэширует бюджетные лимиты", "Redis protocol")
+
+Rel(financialService, financeDb, "Транзакции, балансы, счета", "SQL")
+Rel(financialService, budgetDb, "Сверка состояния бюджетов", "Async / SQL")
+Rel(financialService, kafka, "Financial events", "Async")
+
+' ====================== Event processing ======================
+Rel(eventSink, kafka, "Публикует impressions, clicks, win/loss", "Async")
+Rel(kafka, statisticsService, "Поток событий", "Consumer group")
+Rel(kafka, analyticsService, "События для витрин", "Consumer group")
+Rel(statisticsService, statisticsDb, "Записывает агрегаты", "SQL / Batch")
+Rel(analyticsService, analyticsDb, "Строит витрины", "SQL / Batch")
+
+' ====================== Legacy migration ======================
+Rel(legacyMonolith, legacyDb, "Legacy CRUD", "SQL")
+Rel(legacyMonolith, kafka, "Постепенный вывод событий из монолита", "Async")
+
+' ====================== Observability and delivery ======================
+Rel(dspGateway, observability, "RPS, latency, error rate", "Metrics")
+Rel(adServer, observability, "Candidate selection latency and errors", "Metrics / traces")
+Rel(biddingService, observability, "P95/P99, timeouts, cache hit ratio", "Metrics / traces")
+Rel(deliveryService, observability, "Response render latency and errors", "Metrics / traces")
+Rel(kafka, observability, "Lag, throughput, consumer errors", "Metrics")
+Rel(campaignDb, observability, "Locks, slow queries, saturation", "Metrics")
+Rel(cicd, k8s, "Deploys containers", "Rolling update / rollback")
+
+' ====================== Layout hints ======================
+Lay_R(dspGateway, adServer)
+Lay_R(adServer, biddingService)
+Lay_R(biddingService, deliveryService)
+Lay_D(adServer, redis)
+Lay_D(biddingService, budgetService)
+Lay_D(eventSink, kafka)
+Lay_D(kafka, statisticsService)
+Lay_R(statisticsService, analyticsService)
+Lay_D(campaignService, campaignDb)
+Lay_D(financialService, financeDb)
+Lay_D(legacyMonolith, legacyDb)
+
+' ====================== Notes ======================
+note bottom of adServer
+  Ad Server сохраняет исходную
+  бизнес-функцию:
+  принять HTTP-запрос,
+  определить пользователя,
+  подобрать кандидатов.
+end note
+
+note bottom of biddingService
+  Critical hot path
+  Цель: P95 <= 100 ms
+  DSP target: около 80 ms
+  Нет обязательного SQL-запроса
+  к legacy PostgreSQL
+  на каждый bid request.
+end note
+
+note bottom of deliveryService
+  Delivery Service сохраняет
+  исходную бизнес-функцию:
+  сформировать HTML/JS
+  разметку баннера
+  и HTTP response.
+end note
+
+note bottom of kafka
+  Kafka отделяет события кликов,
+  показов и win/loss от RTB-пути
+  и разгружает transactional DB.
+end note
+
+note bottom of legacyMonolith
+  Монолит не переписывается сразу.
+  Новые сервисы постепенно
+  вытесняют его функции.
+end note
+
+@enduml
