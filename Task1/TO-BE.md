@@ -73,7 +73,7 @@
 3. Ad Server определяет пользователя и подбирает кандидатов рекламы по данным из Redis и Campaign Service.
 4. Bidding Service взвешивает ставки, применяет бизнес-правила и выбирает победителя, используя hot data из Redis и быстрые бюджетные проверки.
 5. Delivery Service получает победившую рекламу, формирует HTML/JS-разметку баннера и HTTP response.
-6. События win/loss, impressions и clicks публикуются в Kafka асинхронно.
+6. События win/loss, показы и клики публикуются в Kafka асинхронно.
 
 ### Поток событий
 
@@ -138,4 +138,14 @@
 
 ## Диаграмма
 
-C4 Container диаграмма целевой архитектуры находится в файле `diagrams/to-be-container.puml`.
+C4 Container диаграмма целевой архитектуры находится в файле [`diagrams/to-be-container.puml`](diagrams/to-be-container.puml).
+
+Диаграмма отражает состояние системы через год и намеренно включает `Legacy Monolith` и `Legacy PostgreSQL` — в соответствии с Strangler Fig Pattern, при котором монолит вытесняется постепенно, а не заменяется разом. Функции, ещё не вынесенные из монолита, продолжают работу параллельно с новыми сервисами.
+
+## Архитектурные решения
+
+Ключевые решения зафиксированы в ADR:
+
+- [`adr/ADR-001`](adr/ADR-001-architecture-evolution-strategy.md) — выбор Strangler Fig Pattern как стратегии эволюции.
+- [`adr/ADR-002`](adr/ADR-002-bidding-service-extraction.md) — выделение Bidding Service первым приоритетом.
+- [`adr/ADR-003`](adr/ADR-003-kafka-event-streaming.md) — выбор Kafka для потоковой обработки событий.

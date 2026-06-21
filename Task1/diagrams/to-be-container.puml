@@ -38,13 +38,13 @@ System_Boundary(adscale, "AdScale Platform") {
   Boundary(domain, "Domain Services") {
     Container(campaignService, "Campaign Service", "Go / Node.js", "Кампании, ставки, таргетинг, правила показа", $tags="new")
     Container(financialService, "Financial Service", "Go", "Списания, счета, балансы, сверки", $tags="new")
-    Container(eventSink, "Event Sink Service", "Go / Python", "Прием impressions, clicks, win/loss events", $tags="new")
+    Container(eventSink, "Event Sink Service", "Go / Python", "Прием показов, кликов и win/loss events", $tags="new")
     Container(statisticsService, "Statistics Service", "Python / Go", "Агрегация событий кликов и показов", $tags="new")
     Container(analyticsService, "Analytics Service", "Python", "Отчеты и аналитические витрины", $tags="new")
   }
 
   Boundary(streaming, "Event Streaming") {
-    ContainerQueue(kafka, "Kafka Cluster", "Kafka", "Impressions, clicks, win/loss events, domain events", $tags="new")
+    ContainerQueue(kafka, "Kafka Cluster", "Kafka", "Показы, клики, win/loss events, domain events", $tags="new")
   }
 
   Boundary(stores, "Data Stores") {
@@ -104,7 +104,7 @@ Rel(financialService, budgetDb, "Сверка состояния бюджето�
 Rel(financialService, kafka, "Financial events", "Async")
 
 ' ====================== Event processing ======================
-Rel(eventSink, kafka, "Публикует impressions, clicks, win/loss", "Async")
+Rel(eventSink, kafka, "Публикует показы, клики, win/loss", "Async")
 Rel(kafka, statisticsService, "Поток событий", "Consumer group")
 Rel(kafka, analyticsService, "События для витрин", "Consumer group")
 Rel(statisticsService, statisticsDb, "Записывает агрегаты", "SQL / Batch")
@@ -160,7 +160,7 @@ end note
 
 note right of kafka
   Kafka отделяет события
-  clicks/impressions/win-loss
+  клики/показы/win-loss
   от RTB-пути.
 end note
 

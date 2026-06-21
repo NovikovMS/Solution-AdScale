@@ -11,8 +11,11 @@
 - `AS-IS.md` - анализ текущей архитектуры, узкие места и риски.
 - `drivers.md` - функциональные требования, атрибуты качества и ограничения.
 - `TO-BE.md` - целевая архитектура и границы будущих сервисов.
-- `diagrams/to-be-container.puml` - C4 Container диаграмма целевой архитектуры.
-- `adr/ADR-001-architecture-evolution-strategy.md` - ADR по стратегии эволюции архитектуры.
+- `diagrams/as-is.puml` - C4 Container диаграмма текущей архитектуры.
+- `diagrams/to-be-container.puml` - C4 Container диаграмма целевой архитектуры (горизонт 1 год).
+- `adr/ADR-001-architecture-evolution-strategy.md` - ADR: стратегия эволюции архитектуры (Strangler Fig).
+- `adr/ADR-002-bidding-service-extraction.md` - ADR: выделение Bidding Service первым приоритетом.
+- `adr/ADR-003-kafka-event-streaming.md` - ADR: выбор Kafka для потоковой обработки событий.
 
 ## Краткий вывод
 
