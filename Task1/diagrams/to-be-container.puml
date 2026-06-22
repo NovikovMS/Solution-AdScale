@@ -80,7 +80,7 @@ Rel(adServer, campaignService, "Получает правила при cache mis
 Rel(adServer, biddingService, "Передает кандидатов", "Internal / gRPC")
 Rel(biddingService, redis, "Читает hot data", "Redis protocol")
 Rel(biddingService, budgetService, "Проверяет лимиты бюджета", "gRPC / cached")
-Rel(biddingService, biddingDb, "Runtime config", "SQL / KV")
+Rel(biddingService, biddingDb, "Runtime config", "JDBC / KV")
 Rel(biddingService, kafka, "Auction win/loss events", "Async")
 Rel(biddingService, deliveryService, "Передает победителя", "Internal / gRPC")
 Rel(deliveryService, dspGateway, "Bid response для DSP", "HTTPS / OpenRTB")
@@ -92,15 +92,15 @@ Rel(dashboard, financialService, "Балансы, счета, платежи", "
 Rel(dashboard, analyticsService, "Отчеты и аналитика", "HTTPS / REST")
 Rel(dashboard, legacyMonolith, "Еще не вынесенные функции", "Internal API")
 
-Rel(campaignService, campaignDb, "Читает и пишет кампании", "SQL")
+Rel(campaignService, campaignDb, "Читает и пишет кампании (CRUD)", "JDBC")
 Rel(campaignService, redis, "Обновляет hot data", "Event-driven invalidation")
 Rel(campaignService, kafka, "Campaign changed", "Domain event")
 
-Rel(budgetService, budgetDb, "Лимиты и резервы бюджета", "SQL")
+Rel(budgetService, budgetDb, "Лимиты и резервы бюджета (ACID)", "JDBC")
 Rel(budgetService, redis, "Кэширует бюджетные лимиты", "Redis protocol")
 
-Rel(financialService, financeDb, "Транзакции, балансы, счета", "SQL")
-Rel(financialService, budgetDb, "Сверка состояния бюджетов", "Async / SQL")
+Rel(financialService, financeDb, "Транзакции, балансы, счета (ACID)", "JDBC")
+Rel(financialService, budgetDb, "Сверка состояния бюджетов", "Async / JDBC")
 Rel(financialService, kafka, "Financial events", "Async")
 
 ' ====================== Event processing ======================
@@ -111,7 +111,7 @@ Rel(statisticsService, statisticsDb, "Записывает агрегаты", "C
 Rel(analyticsService, analyticsDb, "Строит витрины", "ClickHouse Native")
 
 ' ====================== Legacy migration ======================
-Rel(legacyMonolith, legacyDb, "Legacy CRUD", "SQL")
+Rel(legacyMonolith, legacyDb, "Legacy CRUD", "JDBC")
 Rel(legacyMonolith, kafka, "Постепенный вывод событий из монолита", "Async")
 
 ' ====================== Observability and delivery ======================

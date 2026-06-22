@@ -21,7 +21,8 @@ System_Boundary(adscale, "AdScale Data Architecture") {
     
     Container(stats, "Statistics Service", "Python/Go", "Агрегация событий")
     Container(analytics, "Analytics Service", "Python", "Витрины данных")
-    ContainerDb(clickhouse, "ClickHouse Cluster", "ClickHouse", "Сырые события и аналитические витрины")
+    ContainerDb(clickhouse_stats, "Statistics DB", "ClickHouse", "Агрегированная статистика")
+    ContainerDb(clickhouse_analytics, "Analytics DB / OLAP", "ClickHouse / DWH", "Аналитические витрины")
     
     ContainerDb(redis, "Redis Cluster", "Redis", "Hot data cache (latency < 1ms)")
     SystemQueue(kafka, "Kafka Cluster", "Kafka")
@@ -29,11 +30,11 @@ System_Boundary(adscale, "AdScale Data Architecture") {
     ' Связи сервисов с их БД
     Rel(bidding, bidding_db, "Reads/Writes config", "JDBC")
     Rel(campaign, campaign_db, "CRUD", "JDBC")
-    Rel(budget, budget_db, "ACID transactions", "JDBC")
-    Rel(finance, finance_db, "Strict ACID", "JDBC")
+    Rel(budget, budget_db, "Лимиты и резервы (ACID)", "JDBC")
+    Rel(finance, finance_db, "Транзакции и балансы (ACID)", "JDBC")
     
-    Rel(stats, clickhouse, "Bulk inserts", "ClickHouse Native")
-    Rel(analytics, clickhouse, "Heavy OLAP queries", "ClickHouse Native")
+    Rel(stats, clickhouse_stats, "Bulk inserts", "ClickHouse Native")
+    Rel(analytics, clickhouse_analytics, "Heavy OLAP queries", "ClickHouse Native")
     
     ' Кэширование
     Rel(bidding, redis, "Reads hot data", "Redis Protocol")
