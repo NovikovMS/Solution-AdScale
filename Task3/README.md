@@ -11,7 +11,7 @@
 - `caching.md` — Redis Cluster: что кэшировать, TTL по типу ключа, event-driven инвалидация через Kafka, cache warming при старте.
 - `event-streaming.md` — топики Kafka, Avro-схемы событий, consumer groups, политики хранения.
 - `failover.md` — RPO/RTO по сервисам, стратегия бэкапов (pg_basebackup + WAL/PITR, ClickHouse backup, Kafka retention), соответствие 12-factor.
-- `diagrams/` — диаграммы данных.
+- `diagrams/` — [диаграмма архитектуры данных](diagrams/data-architecture.puml).
 
 ## Связь с предыдущими заданиями
 

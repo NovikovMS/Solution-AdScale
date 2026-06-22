@@ -1,0 +1,59 @@
+@startuml
+title Sequence Diagram — RTB Hot Path (AdScale)
+
+actor "DSP Partner / User" as DSP
+participant "DSP API Gateway" as Gateway
+participant "Ad Server" as AdServer
+database "Redis (Hot Data)" as Redis
+participant "Bidding Service" as Bidding
+participant "Budget Service" as Budget
+participant "Delivery Service" as Delivery
+queue "Kafka" as Kafka
+
+DSP -> Gateway: POST /openrtb/v2.5/bid
+activate Gateway
+Gateway -> Gateway: Auth & Rate Limit & Circuit Breaker
+Gateway -> AdServer: HTTP/gRPC (normalized bid request)
+activate AdServer
+
+AdServer -> Redis: GET targeting & campaign data
+activate Redis
+Redis --> AdServer: campaign data
+deactivate Redis
+
+AdServer -> AdServer: Match ad candidates
+AdServer -> Bidding: gRPC Evaluate(candidates)
+activate Bidding
+
+Bidding -> Redis: MGET bid_multipliers, floor_prices
+activate Redis
+Redis --> Bidding: bid configs
+deactivate Redis
+
+Bidding -> Budget: gRPC CheckBudget(campaign_ids)
+activate Budget
+Budget --> Bidding: available budgets
+deactivate Budget
+
+Bidding -> Bidding: Apply rules & select winner
+Bidding --> AdServer: EvaluateResponse (winner)
+deactivate Bidding
+
+AdServer -> Delivery: gRPC Render(winner)
+activate Delivery
+Delivery -> Delivery: Generate HTML/JS
+Delivery --> AdServer: RenderResponse
+deactivate Delivery
+
+AdServer --> Gateway: HTTP Response
+deactivate AdServer
+
+Gateway --> DSP: 200 OK (Bid Response)
+deactivate Gateway
+
+== Async Event Streaming ==
+Delivery -[hidden]> Kafka: Async publish
+Delivery -> Kafka: Publish ad.impressions / ad.clicks
+Bidding -> Kafka: Publish auction.win-loss
+
+@enduml

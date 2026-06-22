@@ -12,7 +12,7 @@
 - `interaction.md` — протоколы взаимодействия: почему gRPC для hot path, REST для domain calls, Kafka для событий; схема всех потоков.
 - `api-gateway.md` — дизайн DSP API Gateway: аутентификация, rate limiting, circuit breaker, мониторинг latency.
 - `reliability.md` — паттерны надёжности: Circuit Breaker, retry с экспоненциальной задержкой, идемпотентность финансовых операций, резервные стратегии.
-- `diagrams/` — диаграммы взаимодействия: sequence diagram RTB-пути, component diagram.
+- `diagrams/` — диаграммы взаимодействия: [sequence diagram RTB-пути](diagrams/interaction-sequence.puml), [component diagram](diagrams/component.puml).
 
 ## Связь с Заданием 1
 

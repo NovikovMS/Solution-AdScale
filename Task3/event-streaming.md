@@ -186,8 +186,8 @@ Schema Registry используется для контроля совмест�
 
 | Consumer Group | Топики | Сервис | Обработка |
 |---|---|---|---|
-| `stats-consumer` | `ad.показы`, `ad.клики`, `auction.win-loss` | Statistics Service | Batch aggregation → ClickHouse |
-| `analytics-consumer` | `ad.показы`, `ad.клики`, `financial.events` | Analytics Service | Materialized views → ClickHouse |
+| `stats-consumer` | `ad.impressions`, `ad.clicks`, `auction.win-loss` | Statistics Service | Batch aggregation → ClickHouse |
+| `analytics-consumer` | `ad.impressions`, `ad.clicks`, `financial.events` | Analytics Service | Materialized views → ClickHouse |
 | `finance-consumer` | `auction.win-loss` | Financial Service | Debit по auction win |
 | `budget-sync` | `financial.events` | Budget Service | Сверка доступного бюджета |
 | `cache-invalidation` | `campaign.changed` | Cache Worker | DEL Redis ключей кампании |
@@ -199,8 +199,8 @@ Schema Registry используется для контроля совмест�
 
 | Топик | Retention | Обоснование |
 |---|---|---|
-| `ad.показы` | 7 дней | Достаточно для replay при сбое Statistics Service |
-| `ad.клики` | 7 дней | Аналогично показам |
+| `ad.impressions` | 7 дней | Достаточно для replay при сбое Statistics Service |
+| `ad.clicks` | 7 дней | Аналогично показам |
 | `auction.win-loss` | 7 дней | Достаточно для финансовой сверки |
 | `campaign.changed` | 1 день | Краткоживущие events для инвалидации кэша |
 | `financial.events` | 30 дней | Финансовый аудит требует длительного хранения |

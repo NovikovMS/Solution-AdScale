@@ -1,0 +1,31 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+title C4 Component Diagram — Bidding Service
+
+Container_Boundary(bidding_service, "Bidding Service") {
+    Component(grpc_server, "gRPC Server", "Go/C++", "Принимает EvaluateRequest от Ad Server")
+    Component(auction_engine, "Auction Engine", "Core", "Применяет бизнес-правила, взвешивает ставки, выбирает победителя")
+    Component(budget_client, "Budget Client", "gRPC Client", "Синхронно проверяет доступный бюджет")
+    Component(redis_client, "Redis Client", "Redis Protocol", "Читает hot data (bid multipliers, floor prices)")
+    Component(kafka_producer, "Kafka Producer", "Kafka API", "Асинхронно публикует auction.win-loss")
+    
+    Rel(grpc_server, auction_engine, "Передает кандидатов")
+    Rel(auction_engine, redis_client, "Запрашивает конфигурацию")
+    Rel(auction_engine, budget_client, "Проверяет бюджет")
+    Rel(auction_engine, kafka_producer, "Отправляет результат аукциона")
+}
+
+Container(ad_server, "Ad Server", "C++, Go", "Подбирает кандидатов")
+Container(budget_service, "Budget Service", "Go", "Управляет бюджетами")
+ContainerDb(redis, "Redis Cluster", "Redis", "Кэш hot data")
+SystemQueue(kafka, "Kafka Cluster", "Kafka")
+
+Rel(ad_server, grpc_server, "gRPC Evaluate()")
+Rel(budget_client, budget_service, "gRPC CheckBudget()")
+Rel(redis_client, redis, "MGET / GET")
+Rel(kafka_producer, kafka, "Publish to auction.win-loss")
+
+@enduml

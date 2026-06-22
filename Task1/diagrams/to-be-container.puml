@@ -52,7 +52,7 @@ System_Boundary(adscale, "AdScale Platform") {
     ContainerDb(biddingDb, "Bidding DB", "PostgreSQL / KV indexes", "Runtime-конфигурация и индексы ставок", $tags="new")
     ContainerDb(budgetDb, "Budget DB", "PostgreSQL", "Лимиты, резервы и состояние бюджетов", $tags="new")
     ContainerDb(financeDb, "Finance DB", "PostgreSQL", "Балансы, счета, финансовые операции", $tags="new")
-    ContainerDb(statisticsDb, "Statistics DB", "PostgreSQL / ClickHouse", "Агрегированная статистика", $tags="new")
+    ContainerDb(statisticsDb, "Statistics DB", "ClickHouse", "Агрегированная статистика", $tags="new")
     ContainerDb(analyticsDb, "Analytics DB / OLAP", "ClickHouse / DWH", "Аналитические витрины", $tags="new")
     ContainerDb(legacyDb, "Legacy PostgreSQL", "PostgreSQL", "Данные функций, еще не вынесенных из монолита", $tags="legacy")
   }
@@ -107,8 +107,8 @@ Rel(financialService, kafka, "Financial events", "Async")
 Rel(eventSink, kafka, "Публикует показы, клики, win/loss", "Async")
 Rel(kafka, statisticsService, "Поток событий", "Consumer group")
 Rel(kafka, analyticsService, "События для витрин", "Consumer group")
-Rel(statisticsService, statisticsDb, "Записывает агрегаты", "SQL / Batch")
-Rel(analyticsService, analyticsDb, "Строит витрины", "SQL / Batch")
+Rel(statisticsService, statisticsDb, "Записывает агрегаты", "ClickHouse Native / Batch")
+Rel(analyticsService, analyticsDb, "Строит витрины", "ClickHouse Native")
 
 ' ====================== Legacy migration ======================
 Rel(legacyMonolith, legacyDb, "Legacy CRUD", "SQL")

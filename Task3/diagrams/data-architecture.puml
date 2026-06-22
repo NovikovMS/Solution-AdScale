@@ -1,0 +1,51 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title C4 Container Diagram — Data Architecture (Database per Service)
+
+System_Boundary(adscale, "AdScale Data Architecture") {
+    
+    Container(bidding, "Bidding Service", "Go/C++", "Аукцион")
+    ContainerDb(bidding_db, "BiddingDB", "PostgreSQL", "Конфигурация аукционов")
+    
+    Container(campaign, "Campaign Service", "Go", "Управление кампаниями")
+    ContainerDb(campaign_db, "CampaignDB", "PostgreSQL", "Кампании, ставки, таргетинг")
+    
+    Container(budget, "Budget Service", "Go", "Лимиты и бюджеты")
+    ContainerDb(budget_db, "BudgetDB", "PostgreSQL", "Резервы и балансы")
+    
+    Container(finance, "Financial Service", "Go", "Списания и счета")
+    ContainerDb(finance_db, "FinanceDB", "PostgreSQL", "Транзакции, аудит-лог")
+    
+    Container(stats, "Statistics Service", "Python/Go", "Агрегация событий")
+    Container(analytics, "Analytics Service", "Python", "Витрины данных")
+    ContainerDb(clickhouse, "ClickHouse Cluster", "ClickHouse", "Сырые события и аналитические витрины")
+    
+    ContainerDb(redis, "Redis Cluster", "Redis", "Hot data cache (latency < 1ms)")
+    SystemQueue(kafka, "Kafka Cluster", "Kafka")
+    
+    ' Связи сервисов с их БД
+    Rel(bidding, bidding_db, "Reads/Writes config", "JDBC")
+    Rel(campaign, campaign_db, "CRUD", "JDBC")
+    Rel(budget, budget_db, "ACID transactions", "JDBC")
+    Rel(finance, finance_db, "Strict ACID", "JDBC")
+    
+    Rel(stats, clickhouse, "Bulk inserts", "ClickHouse Native")
+    Rel(analytics, clickhouse, "Heavy OLAP queries", "ClickHouse Native")
+    
+    ' Кэширование
+    Rel(bidding, redis, "Reads hot data", "Redis Protocol")
+    Rel(budget, redis, "Reads/Writes frequency cap", "Redis Protocol")
+    Rel(campaign, redis, "Invalidates cache", "Redis Protocol")
+    
+    ' Kafka
+    Rel(bidding, kafka, "Publishes win/loss", "Kafka Protocol")
+    Rel(stats, kafka, "Consumes impressions, clicks, win/loss", "Kafka Protocol")
+    Rel(analytics, kafka, "Consumes all events", "Kafka Protocol")
+    Rel(finance, kafka, "Consumes win/loss, publishes financial events", "Kafka Protocol")
+    Rel(budget, kafka, "Consumes financial events", "Kafka Protocol")
+}
+
+@enduml
