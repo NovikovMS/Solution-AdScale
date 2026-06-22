@@ -1,0 +1,109 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+LAYOUT_LEFT_RIGHT()
+
+title C4 Container Diagram - AdScale AS-IS
+
+' ====================== Tags ======================
+AddElementTag("bottleneck", $bgColor="#438DD5", $fontColor="#FFFFFF", $borderColor="#CC0000")
+AddElementTag("critical", $bgColor="#438DD5", $fontColor="#FFFFFF", $borderColor="#FF7700")
+AddElementTag("spof", $bgColor="#438DD5", $fontColor="#FFFFFF", $borderColor="#CC0000")
+
+' ====================== Actors and external systems ======================
+Person(advertiser, "Рекламодатель", "Управляет кампаниями, бюджетами и ставками через личный кабинет")
+Person_Ext(endUser, "Пользователь сайта/приложения", "Просматривает рекламу, кликает по баннерам")
+
+System_Ext(dspPartner, "DSP-партнер", "Отправляет bid requests, получает bid responses по OpenRTB")
+System_Ext(paymentGateway, "Платежный шлюз", "Обработка пополнения рекламных бюджетов")
+
+' ====================== Monolith ======================
+System_Boundary(monolith, "AdScale Monolith (C++ / Go / Python / Node.js)") {
+  Container(adServer, "Ad Server", "C++ / Go", "Принимает HTTP-запросы, определяет пользователя, подбирает кандидатов в рекламу", $tags="bottleneck")
+  Container(auctionEngine, "Auction Engine", "C++", "Взвешивание ставок, бизнес-правила, расчет победителя аукциона", $tags="critical")
+  Container(deliveryService, "Delivery Service", "Node.js", "Формирует HTML/JS-разметку баннера и HTTP response")
+  Container(statsService, "Statistics Service", "Python", "Запись кликов и показов", $tags="bottleneck")
+  Container(financialService, "Financial Service", "Go", "Списание средств, выставление счетов, управление балансами")
+  Container(analyticsService, "Analytics Service", "Python", "Аналитические SQL-запросы по production-БД", $tags="bottleneck")
+  Container(adCabinet, "Advertiser Dashboard", "Node.js + JavaScript", "Web UI: управление кампаниями, бюджетами, отчетностью")
+}
+
+' ====================== Data store ======================
+ContainerDb(postgres, "PostgreSQL", "PostgreSQL (одна инстанция)", "Единая БД: кампании, ставки, события, финансы, аналитика", $tags="spof")
+
+' ====================== External relations ======================
+Rel(dspPartner, adServer, "Bid requests / responses", "HTTPS / OpenRTB")
+Rel(endUser, deliveryService, "Просмотр рекламы и клики", "HTTPS")
+Rel(advertiser, adCabinet, "Управляет кампаниями и бюджетами", "HTTPS")
+Rel(adCabinet, paymentGateway, "Пополнение бюджета", "HTTPS / REST")
+
+' ====================== Internal monolith relations ======================
+Rel(adServer, auctionEngine, "Передает кандидатов", "Internal Call")
+Rel(auctionEngine, deliveryService, "Передает победителя аукциона", "Internal Call")
+Rel(deliveryService, statsService, "Регистрирует показы/клики", "Internal Call")
+Rel(adCabinet, financialService, "Управление финансами", "Internal Call")
+Rel(adCabinet, analyticsService, "Запросы аналитики", "Internal Call")
+
+' ====================== Database relations ======================
+Rel(adServer, postgres, "Чтение данных для таргетинга", "JDBC / Sync")
+Rel(auctionEngine, postgres, "Читает ставки и кампании", "JDBC / Sync")
+Rel(statsService, postgres, "Прямая запись событий", "JDBC / Direct Write")
+Rel(financialService, postgres, "Транзакции и балансы", "JDBC")
+Rel(analyticsService, postgres, "Тяжелые аналитические запросы", "JDBC")
+Rel(adCabinet, postgres, "CRUD операции", "JDBC")
+
+' ====================== Layout hints ======================
+Lay_D(adServer, auctionEngine)
+Lay_D(auctionEngine, deliveryService)
+Lay_D(deliveryService, statsService)
+Lay_R(statsService, financialService)
+Lay_R(financialService, analyticsService)
+Lay_D(adCabinet, postgres)
+
+' ====================== Notes ======================
+note right of auctionEngine
+  Critical bottleneck:
+  синхронные вызовы к БД
+  в RTB hot path.
+end note
+
+note right of postgres
+  Single Point of Failure:
+  одна инстанция,
+  нет HA/read replicas,
+  OLTP + analytics вместе.
+end note
+
+note left of statsService
+  Write bottleneck:
+  direct write без Kafka
+  и буферизации.
+end note
+
+note right of analyticsService
+  Heavy queries
+  напрямую на production DB:
+  блокировки и рост latency.
+end note
+
+note left of adServer
+  Bottleneck:
+  чтение targeting/campaign
+  данных из общей БД.
+end note
+
+' ====================== Legend ======================
+legend right
+  <b>AS-IS риски и метрики</b>
+  <#FF0000> 15 000 RPS пик
+  <#FF7700> P95 latency: 110-120 ms при требовании <= 100 ms
+  <#FF7700> Периодические деградации в часы пик
+  <#FF0000> Нет запаса по производительности
+  <#888888> Одна PostgreSQL-инстанция, нет HA/read replicas
+  <#888888> Кэш отсутствует
+  <#888888> Очереди / event streaming отсутствуют
+  <#888888> Контейнеризация отсутствует, деплой вручную
+endlegend
+
+@enduml

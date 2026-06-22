@@ -219,3 +219,9 @@ __marimo__/
 
 .cursor/
 .venv/
+
+# Draw.io temporary and backup files
+*.bkp
+*.dtmp
+.$*.drawio.bkp
+.$*.drawio.dtmp

@@ -1,0 +1,28 @@
+# Task2. Проектирование RTB и интеграции с DSP
+
+## Цель
+
+Спроектировать архитектуру критичного компонента — RTB-сервиса для интеграции с новой DSP-площадкой с соблюдением требований по времени отклика и надёжности.
+
+Ключевые SLA: P95 latency ≤ 100 ms (цель 80 ms для нового DSP-партнёра), 18 000 RPS через 3 месяца, 50 000 RPS через год.
+
+## Состав артефактов
+
+- `bidding-service.md` — спецификация Bidding Service: границы, gRPC API, зависимости, модель данных, нефункциональные требования.
+- `interaction.md` — протоколы взаимодействия: почему gRPC для hot path, REST для domain calls, Kafka для событий; схема всех потоков.
+- `api-gateway.md` — дизайн DSP API Gateway: аутентификация, rate limiting, circuit breaker, мониторинг latency.
+- `reliability.md` — паттерны надёжности: Circuit Breaker, retry с экспоненциальной задержкой, идемпотентность финансовых операций, резервные стратегии.
+- `diagrams/` — диаграммы взаимодействия: [sequence diagram RTB-пути](diagrams/interaction-sequence.puml), [component diagram](diagrams/component.puml).
+
+## Связь с Заданием 1
+
+Архитектурные обоснования, заложенные в Задании 1, являются основой для проектных решений этого задания:
+
+- `../Task1/adr/ADR-001` — стратегия Strangler Fig как контекст постепенного выделения сервисов.
+- `../Task1/adr/ADR-002` — обоснование приоритета выделения Bidding Service.
+- `../Task1/adr/ADR-003` — обоснование выбора Kafka для потоковой обработки событий.
+- `../Task1/diagrams/to-be-container.puml` — C4 Container диаграмма целевой архитектуры.
+
+## Краткий вывод
+
+RTB hot path строится на gRPC с deadline propagation: DSP API Gateway → Ad Server → Bidding Service → Delivery Service. Bidding Service не обращается к PostgreSQL синхронно — только к Redis. Events (показы, клики, win/loss) публикуются в Kafka асинхронно после возврата ответа. Надёжность обеспечивается Circuit Breaker на каждом вызове зависимости, резервными стратегиями (кэшированные данные, дефолтные ставки) и идемпотентностью финансовых операций.
