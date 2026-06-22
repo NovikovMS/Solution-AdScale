@@ -8,6 +8,7 @@ database "Redis (Hot Data)" as Redis
 participant "Bidding Service" as Bidding
 participant "Budget Service" as Budget
 participant "Delivery Service" as Delivery
+participant "Event Sink Service" as EventSink
 queue "Kafka" as Kafka
 
 DSP -> Gateway: POST /openrtb/v2.5/bid
@@ -52,8 +53,11 @@ Gateway --> DSP: 200 OK (Bid Response)
 deactivate Gateway
 
 == Async Event Streaming ==
-Delivery -[hidden]> Kafka: Async publish
-Delivery -> Kafka: Publish ad.impressions / ad.clicks
+Delivery -[hidden]> EventSink: Async publish
+Delivery -> EventSink: HTTP POST (impressions, clicks)
+activate EventSink
+EventSink -> Kafka: Publish ad.impressions / ad.clicks
+deactivate EventSink
 Bidding -> Kafka: Publish auction.win-loss
 
 @enduml

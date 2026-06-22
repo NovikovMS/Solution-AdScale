@@ -104,7 +104,7 @@ Rel(financialService, budgetDb, "Сверка состояния бюджето�
 Rel(financialService, kafka, "Financial events", "Async")
 
 ' ====================== Event processing ======================
-Rel(eventSink, kafka, "Публикует показы, клики, win/loss", "Async")
+Rel(eventSink, kafka, "Публикует показы, клики", "Async")
 Rel(kafka, statisticsService, "Поток событий", "Consumer group")
 Rel(kafka, analyticsService, "События для витрин", "Consumer group")
 Rel(statisticsService, statisticsDb, "Записывает агрегаты", "ClickHouse Native / Batch")

@@ -12,20 +12,25 @@ Container_Boundary(bidding_service, "Bidding Service") {
     Component(redis_client, "Redis Client", "Redis Protocol", "Читает hot data (bid multipliers, floor prices)")
     Component(kafka_producer, "Kafka Producer", "Kafka API", "Асинхронно публикует auction.win-loss")
     
+    Component(bidding_db_client, "BiddingDB Client", "JDBC", "Читает/пишет конфигурацию правил")
+
     Rel(grpc_server, auction_engine, "Передает кандидатов")
     Rel(auction_engine, redis_client, "Запрашивает конфигурацию")
     Rel(auction_engine, budget_client, "Проверяет бюджет")
     Rel(auction_engine, kafka_producer, "Отправляет результат аукциона")
+    Rel(auction_engine, bidding_db_client, "Синхронизирует конфигурацию")
 }
 
 Container(ad_server, "Ad Server", "C++, Go", "Подбирает кандидатов")
 Container(budget_service, "Budget Service", "Go", "Управляет бюджетами")
 ContainerDb(redis, "Redis Cluster", "Redis", "Кэш hot data")
-SystemQueue(kafka, "Kafka Cluster", "Kafka")
+SystemQueue(kafka, "Kafka Cluster", "Kafka", "")
+ContainerDb(bidding_db, "BiddingDB", "PostgreSQL", "Конфигурация аукционов")
 
 Rel(ad_server, grpc_server, "gRPC Evaluate()")
 Rel(budget_client, budget_service, "gRPC CheckBudget()")
 Rel(redis_client, redis, "MGET / GET")
 Rel(kafka_producer, kafka, "Publish to auction.win-loss")
+Rel(bidding_db_client, bidding_db, "JDBC")
 
 @enduml

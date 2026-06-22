@@ -43,6 +43,7 @@ System_Boundary(adscale, "AdScale Data Architecture") {
     
     ' Kafka
     Rel(bidding, kafka, "Publishes win/loss", "Kafka Protocol")
+    Rel(campaign, kafka, "Publishes campaign.changed", "Kafka Protocol")
     Rel(stats, kafka, "Consumes impressions, clicks, win/loss", "Kafka Protocol")
     Rel(analytics, kafka, "Consumes all events", "Kafka Protocol")
     Rel(finance, kafka, "Consumes win/loss, publishes financial events", "Kafka Protocol")
